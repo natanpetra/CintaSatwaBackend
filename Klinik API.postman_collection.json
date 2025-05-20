@@ -1,0 +1,351 @@
+{
+	"info": {
+		"_postman_id": "ae8ab7f6-e55e-466c-8b1e-6b1296cc9443",
+		"name": "Klinik API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "1189472",
+		"_collection_link": "https://speeding-trinity-9879.postman.co/workspace/speeding-trinity-9879's-Public-~ec121180-2a40-47a4-a722-a6f07f404cb7/collection/1189472-ae8ab7f6-e55e-466c-8b1e-6b1296cc9443?action=share&source=collection_link&creator=1189472"
+	},
+	"item": [
+		{
+			"name": "Register",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "name",
+							"value": "Testing",
+							"type": "text"
+						},
+						{
+							"key": "phone",
+							"value": "087111828121",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/customer/sign-up",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"customer",
+						"sign-up"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/customer/sign-in",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"customer",
+						"sign-in"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Checkout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 1,\n  \"total_price\": 150000,\n  \"items\": [\n    {\n      \"product_id\": 101,\n      \"quantity\": 2\n    },\n    {\n      \"product_id\": 102,\n      \"quantity\": 1\n    }\n  ]\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/checkout",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Thumbnail",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 1,\n  \"total_price\": 150000,\n  \"items\": [\n    {\n      \"product_id\": 101,\n      \"quantity\": 2\n    },\n    {\n      \"product_id\": 102,\n      \"quantity\": 1\n    }\n  ]\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/checkout",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Data Klinik",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/clinics",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"clinics"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get List Dokter",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/doctors",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"doctors"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Dog Guide",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/doctors",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"doctors"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Product / Obat",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/product",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"product"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Oder",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "tes123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://klinik.buatsoftware.com/api/orders/6",
+					"protocol": "https",
+					"host": [
+						"klinik",
+						"buatsoftware",
+						"com"
+					],
+					"path": [
+						"api",
+						"orders",
+						"6"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
