@@ -204,7 +204,7 @@ class CustomerController extends Controller
             }
     
             $validator = Validator::make($request->all(), [
-                'thumbnail' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+                'thumbnail' => 'required|image|mimes:jpg,jpeg,png',
             ]);
     
             if ($validator->fails()) {

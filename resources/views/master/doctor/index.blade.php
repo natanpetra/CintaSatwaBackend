@@ -20,6 +20,7 @@
                     <th>Nama Dokter</th>
                     <th>Spesialis</th>
                     <th>No HP</th>
+                    <th>Foto</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -30,6 +31,7 @@
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->specialization }}</td>
                     <td>{{ $item->phone }}</td>
+                    <td><img src="{{ asset('storage/' . $item->image) }}" width="100" height="100" /></td>
                     <td>
                         <div class="btn-group">
                             <a class="btn btn-default" href="{{ url($route . '/' . $item->id . '/edit') }}"><i class="fa fa-pencil"></i></a>

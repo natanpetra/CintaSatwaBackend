@@ -133,6 +133,13 @@ return [
       'icon' => 'question-circle',
     ],
     [
+      'text' => 'Ectoparasite',
+      'url'  => 'master/ectoparasite',
+      'model'  => 'master/ectoparasite',
+      'can' => 'access-menu',
+      'icon' => 'question-circle',
+    ],
+    [
       'text' => 'Product',
       'url'  => 'master/product',
       'model'  => 'master/product',
@@ -163,20 +170,20 @@ return [
     ],
     'KARYAWAN',
     [
-      'text'    => 'Karyawan',
+      'text'    => 'Pasien',
       'model'    => Str::slug('Employee', '_'),
       'can' => 'access-menu',
       'icon'    => 'address-card-o',
       'submenu' => [
         [
-          'text' => 'Peran Karyawan',
+          'text' => 'Peran Pasien',
           'url'  => 'master/employee/role',
           'model'  => 'master/employee/role',
           'can' => 'access-menu',
           'icon' => 'key',
         ],
         [
-          'text' => 'Karyawan',
+          'text' => 'Pasien',
           'url'  => 'master/employee',
           'model'  => 'master/employee',
           'can' => 'access-menu',

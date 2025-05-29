@@ -27,6 +27,7 @@ Route::group(['middleware' => ['auth', 'access.application']], function () {
         Route::post('/clinic/{id}', 'ClinicController@update')->middleware('access.menu:master/clinic');
         Route::post('/doctor/{id}', 'DoctorController@update')->middleware('access.menu:master/doctor');
         Route::post('/guide/{id}', 'GuideController@update')->middleware('access.menu:master/guide');
+        Route::post('/ectoparasite/{id}', 'EctoparasiteController@update')->middleware('access.menu:master/ectoparasite');
         Route::post('/product/{id}', 'ProductController@update')->middleware('access.menu:master/product');
 
         // Resource routes untuk semua controller
@@ -36,6 +37,7 @@ Route::group(['middleware' => ['auth', 'access.application']], function () {
         Route::resource('/clinic', 'ClinicController')->middleware('access.menu:master/clinic');
         Route::resource('/doctor', 'DoctorController')->middleware('access.menu:master/doctor');
         Route::resource('/guide', 'GuideController')->middleware('access.menu:master/guide');
+        Route::resource('/ectoparasite', 'EctoparasiteController')->middleware('access.menu:master/ectoparasite');
         Route::resource('/product', 'ProductController')->middleware('access.menu:master/product');
 
 

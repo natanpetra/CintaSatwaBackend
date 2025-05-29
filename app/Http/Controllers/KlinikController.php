@@ -61,7 +61,7 @@ class KlinikController extends Controller
     public function submitScan(Request $request)
     {
         $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:2048'
+            'photo' => 'required|image|mimes:jpeg,png,jpg'
         ]);
 
         // Ambil user dari token
