@@ -51,6 +51,7 @@ class CheckoutController extends Controller
                 // Create order item
                 OrderItem::create([
                     'order_id' => $order->id,
+                    
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
                     'subtotal' => $product->price * $item['quantity']

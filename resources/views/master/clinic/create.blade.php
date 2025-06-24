@@ -26,3 +26,4 @@
         </form>
 </div>
 @stop
+<!-- resources/views/admin/berita/create.blade.php -->

@@ -11,7 +11,6 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-
 use App\User;
 use App\Models\Role;
 use App\Models\Master\Profile\Profile;
@@ -25,19 +24,23 @@ class CustomerController extends Controller
 
     private function _userObject($user)
     {
-      // create presentation
-      $profile = $user->profile()
-          ->first();
-          
-      $user = $user->toArray();
+        // create presentation
+        $profile = $user->profile()
+            ->first();
+            
+        $user = $user->toArray();
 
-      $result = array_merge(
-          $user,
-          $profile->toArray(),
-          ['id' => $profile->id ]
-      );
+        $result = array_merge(
+            $user,
+            $profile->toArray(),
+            [
+                'id' => $profile->id,
+                'phone' => $profile->phone, // PASTIKAN PHONE MUNCUL DI RESPONSE
+                'image_url' => $profile->image ? asset('storage/' . $profile->image) : null
+            ]
+        );
 
-      return $result;
+        return $result;
     }
 
     /**
@@ -47,7 +50,7 @@ class CustomerController extends Controller
      */
     public function index()
     {
-      return response()->json(User::all(), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
+        return response()->json(User::all(), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
     }
 
     /**
@@ -58,78 +61,76 @@ class CustomerController extends Controller
      */
     public function store(Request $request)
     {
-      $validator = Validator::make($request->all(), [
-        'email' => ['required', 'unique:users,email', 'email'],
-        'name' => ['required'],
-        'phone' => ['required', 'unique:profiles,phone', 'numeric', 'digits_between:7,12'],
-        'password' => ['required', 'string', 'min:8'],
-      ]);
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'unique:users,email', 'email'],
+            'name' => ['required'],
+            'phone' => ['required', 'unique:profiles,phone', 'numeric', 'digits_between:7,12'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
 
-      if ($validator->fails()) {
-        $errorMessages = [];
-        foreach ($validator->errors()->get('*') as $key => $value) {
-          $errorMessages[$key] = implode(', ', $value);
+        if ($validator->fails()) {
+            $errorMessages = [];
+            foreach ($validator->errors()->get('*') as $key => $value) {
+                $errorMessages[$key] = implode(', ', $value);
+            }
+            return response()->json(['message' => $errorMessages], 400);
         }
-        return response()->json(['message' => $errorMessages], 400);
-      }
 
-      try {
-        DB::beginTransaction();
+        try {
+            DB::beginTransaction();
 
-        $roleAsCustomer = 2;
+            $roleAsCustomer = 2;
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'notification_channel_id' => $request->notification_channel_id,
-            'token_api' => Str::random(60),
-            'token_email_verification' => Str::random(12),
-            'role_id' => 2,
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'notification_channel_id' => $request->notification_channel_id,
+                'token_api' => Str::random(60),
+                'token_email_verification' => Str::random(12),
+                'role_id' => 2,
+            ]);
 
-        $profile = $user->profile()->create([
-            'name' => $user->name,
-            'phone' => $request->phone,
-            'is_active' => true
-        ]);
+            $profile = $user->profile()->create([
+                'name' => $user->name,
+                'phone' => $request->phone, // SIMPAN PHONE NUMBER
+                'is_active' => true
+            ]);
 
-        
-        DB::commit();
+            DB::commit();
 
-        return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
-      } catch (\Exception $e) {
-        DB::rollback();
-
-        return response()->json(['message' => $e->getMessage()], 500);
-      }
-
-
+            // RETURN DENGAN PHONE NUMBER
+            return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     public function verificationEmail($verification_code)
     {
-      if (!Empty($verification_code)) {
-        $user = User::where('token_email_verification', $verification_code)
-        ->whereNull('email_verified_at')
-        ->first();
+        if (!Empty($verification_code)) {
+            $user = User::where('token_email_verification', $verification_code)
+            ->whereNull('email_verified_at')
+            ->first();
 
-        if (!empty($user)) {
-          $user->email_verified_at = date('Y-m-d H:i:s');
-          $user->save();
+            if (!empty($user)) {
+                $user->email_verified_at = date('Y-m-d H:i:s');
+                $user->save();
 
-          $response = [
-            'type' => 'success',
-            'message' => 'vefikasi email berhasil, silahkan login pada aplikasi!'
-          ];
+                $response = [
+                    'type' => 'success',
+                    'message' => 'vefikasi email berhasil, silahkan login pada aplikasi!'
+                ];
 
-          return view('auth.verify-message-1', $response);
+                return view('auth.verify-message-1', $response);
+            }
+
+            abort(404);
         }
 
         abort(404);
-      }
-
-      abort(404);
     }
 
     /**
@@ -140,7 +141,8 @@ class CustomerController extends Controller
      */
     public function show(Request $request)
     {
-      return response()->json($this->_userObject($request->user), 200);
+        // PASTIKAN PHONE NUMBER MUNCUL DI RESPONSE PROFILE
+        return response()->json($this->_userObject($request->user), 200);
     }
 
     /**
@@ -152,48 +154,49 @@ class CustomerController extends Controller
      */
     public function update(Request $request)
     {
-      $user = $request->user;
+        $user = $request->user;
 
-      $ignoredUserId = !empty($user->id) ? ',' . $user->id : '';
-      $ignoredProfileId = !empty($user->id) ? ',' . $user->profile->id : '';
+        $ignoredUserId = !empty($user->id) ? ',' . $user->id : '';
+        $ignoredProfileId = !empty($user->id) ? ',' . $user->profile->id : '';
 
-      $validator = Validator::make($request->all(), [
-        'email' => ['required', 'unique:users,email' . $ignoredUserId, 'email'],
-        'phone' => ['required', 'unique:profiles,phone' . $ignoredProfileId, 'numeric', 'digits_between:7,12'],
-        'identity_number' => ['nullable', 'unique:profiles,identity_number' . $ignoredProfileId, 'numeric', 'digits:16']
-      ]);
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'unique:users,email' . $ignoredUserId, 'email'],
+            'phone' => ['required', 'unique:profiles,phone' . $ignoredProfileId, 'numeric', 'digits_between:7,12'],
+            'identity_number' => ['nullable', 'unique:profiles,identity_number' . $ignoredProfileId, 'numeric', 'digits:16']
+        ]);
 
-      if ($validator->fails()) {
-        $errorMessages = [];
-        foreach ($validator->errors()->get('*') as $key => $value) {
-          $errorMessages[$key] = implode(', ', $value);
+        if ($validator->fails()) {
+            $errorMessages = [];
+            foreach ($validator->errors()->get('*') as $key => $value) {
+                $errorMessages[$key] = implode(', ', $value);
+            }
+            return response()->json(['message' => $errorMessages], 400);
         }
-        return response()->json(['message' => $errorMessages], 400);
-      }
 
-      try {
-        $user = User::find($user->id);
+        try {
+            $user = User::find($user->id);
 
-        $user->update([
-          'email' => $request['email'],
-          'name' => $request['name'],
-          'notification_channel_id' => $request['notification_channel_id']
-        ]);
+            $user->update([
+                'email' => $request['email'],
+                'name' => $request['name'],
+                'notification_channel_id' => $request['notification_channel_id']
+            ]);
 
-        $user->profile()->update([
-          'name' => $request['name'],
-          'phone' => $request['phone'],
-          'npwp_number' => $request['npwp_number'],
-          'identity_number' => $request['identity_number']
-        ]);
+            $user->profile()->update([
+                'name' => $request['name'],
+                'phone' => $request['phone'], // UPDATE PHONE NUMBER
+                'npwp_number' => $request['npwp_number'],
+                'identity_number' => $request['identity_number']
+            ]);
 
-        $user->save();
+            $user->save();
 
-
-        return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
-      } catch (\Exception $e) {
-        return response()->json(['message' => $e->getMessage()], 500);
-      }
+            // RETURN DENGAN PHONE NUMBER YANG SUDAH DIUPDATE
+            return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
+            
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     public function updateThumbnail(Request $request)
@@ -234,8 +237,8 @@ class CustomerController extends Controller
             
             $fullUrl = asset('storage/' . $path);
 
-    
             return response()->json(['message' => 'Thumbnail berhasil diupdate', 'image' => $fullUrl], 200);
+            
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
@@ -243,75 +246,76 @@ class CustomerController extends Controller
 
     public function updateIdentityImage(Request $request)
     {
-      $activeUser = $request->user;
+        $activeUser = $request->user;
 
-      try {
-        if(!$request->hasfile('identity_image')) return response()->json(['message' => 'tidak ada file yang diupload'], 500);
+        try {
+            if(!$request->hasfile('identity_image')) return response()->json(['message' => 'tidak ada file yang diupload'], 500);
 
-        $validator = Validator::make($request->all(), [
-          'identity_image' => 'required | image:jpg,jpeg,png | max:2048',
-        ]);
+            $validator = Validator::make($request->all(), [
+                'identity_image' => 'required | image:jpg,jpeg,png | max:2048',
+            ]);
 
-        if ($validator->fails()) return response()->json(['message' => 'extensi yang diizinkan jpg,jpeg,png, maximum size 2MB'], 500);
-        
-        if (!empty($activeUser->profile->identity_image)) \Storage::delete("/public/".$activeUser->profile->identity_image);
+            if ($validator->fails()) return response()->json(['message' => 'extensi yang diizinkan jpg,jpeg,png, maximum size 2MB'], 500);
+            
+            if (!empty($activeUser->profile->identity_image)) \Storage::delete("/public/".$activeUser->profile->identity_image);
 
-        $path = $request->file('identity_image')->store('img/customer', 'public');
+            $path = $request->file('identity_image')->store('img/customer', 'public');
 
-        $profile = $activeUser->profile;
-        $profile->identity_image = $path;
-        $profile->save();
+            $profile = $activeUser->profile;
+            $profile->identity_image = $path;
+            $profile->save();
 
-        return response()->json($this->_userObject($activeUser), 200);
-      } catch (\Throwable $e) {
-        return response()->json(['message' => $e->getMessage()], 500);
-      }
+            return response()->json($this->_userObject($activeUser), 200);
+            
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     public function signIn (Request $request)
     {
-      $validator = Validator::make($request->all(), [
-          'email' => ['required', 'string', 'email', 'max:255'],
-          'password' => ['required', 'string', 'min:8'],
-      ]);
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
 
-      if ($validator->fails()) {
-        $errorMessages = [];
-        foreach ($validator->errors()->get('*') as $key => $value) {
-          $errorMessages[$key] = implode(', ', $value);
+        if ($validator->fails()) {
+            $errorMessages = [];
+            foreach ($validator->errors()->get('*') as $key => $value) {
+                $errorMessages[$key] = implode(', ', $value);
+            }
+            return response()->json(['message' => $errorMessages], 400);
         }
-        return response()->json(['message' => $errorMessages], 400);
-      }
 
-      $user = User::where('email', $request["email"])->first();
+        $user = User::where('email', $request["email"])->first();
 
-      if ($user) {
-          if (Hash::check($request["password"], $user->password)) {
-            $user->token_api = Str::random(60);
-            $user->save();
+        if ($user) {
+            if (Hash::check($request["password"], $user->password)) {
+                $user->token_api = Str::random(60);
+                $user->save();
 
-            return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
-          }
+                // RETURN LOGIN DENGAN PHONE NUMBER
+                return response()->json($this->_userObject($user), 200)->setEncodingOptions(JSON_NUMERIC_CHECK);
+            }
 
-          return response()->json(['message' => 'password tidak sesuai'], 400);
-      }else {
-        return response()->json(['message' => 'email tidak ditemukan'], 400);
-      }
+            return response()->json(['message' => 'password tidak sesuai'], 400);
+        }else {
+            return response()->json(['message' => 'email tidak ditemukan'], 400);
+        }
     }
 
     public function signOut (Request $request)
     {
-      $user = $request->user;
+        $user = $request->user;
 
-      try {
-        $user->token_api = NULL;
-        $user->save();
+        try {
+            $user->token_api = NULL;
+            $user->save();
 
-        return response()->json([], 201);
-      } catch (\Exception $e) {
-        return response()->json(['massage' => 'gagal logout'], 400);
-      }
-
+            return response()->json([], 201);
+        } catch (\Exception $e) {
+            return response()->json(['massage' => 'gagal logout'], 400);
+        }
     }
 
     /**

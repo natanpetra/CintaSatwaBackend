@@ -1,8 +1,13 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+// Import Controllers
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\KlinikController;
 use App\Http\Controllers\CheckoutController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -14,36 +19,55 @@ use App\Http\Controllers\CheckoutController;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+// Customer Authentication & Profile Routes
+Route::prefix('customer')->group(function () {
+    // Registration & Login (tidak perlu auth)
+    Route::post('sign-up', [CustomerController::class, 'store']);
+    Route::post('sign-in', [CustomerController::class, 'signIn']);
+    
+    // Profile Management (perlu auth)
+    Route::middleware('auth:api')->group(function () {
+        Route::post('sign-out', [CustomerController::class, 'signOut']);
+        Route::get('profile', [CustomerController::class, 'show']); // Ini yang akan return phone number
+        Route::put('profile', [CustomerController::class, 'update']);
+    });
+    
+    // Upload thumbnail (tidak perlu auth karena pakai user_id di request)
+    Route::post('update-thumbnail', [CustomerController::class, 'updateThumbnail']);
 });
 
-Route::post('customer/sign-in', 'CustomerController@signIn');
-Route::post('customer/sign-up', 'CustomerController@store');
-Route::post('customer/update-thumbnail', 'CustomerController@updateThumbnail');
+// Klinik & Medical Data Routes
+Route::get('product', [KlinikController::class, 'getProducts']);
+Route::get('clinic', [KlinikController::class, 'getClinics']);
+Route::get('doctors', [KlinikController::class, 'getDoctors']);
+Route::get('dog-care-guides', [KlinikController::class, 'getDogCareGuides']);
+Route::get('ectoparasite-diseases', [KlinikController::class, 'getEctoparasiteDiseases']);
+Route::get('ras', [KlinikController::class, 'getRas']); // Jika ada endpoint ini
 
-
-Route::get('/clinics', [KlinikController::class, 'getClinics']);
-Route::get('/consultations', [KlinikController::class, 'getConsultations']);
-Route::get('/consultation-history', [KlinikController::class, 'getConsultationHistory']);
-Route::get('/doctors', [KlinikController::class, 'getDoctors']);
-Route::get('/dog-care-guides', [KlinikController::class, 'getDogCareGuides']);
-Route::get('/ectoparasite-diseases', [KlinikController::class, 'getEctoparasiteDiseases']);
-Route::get('/medical-records', [KlinikController::class, 'getMedicalRecords']);
-Route::get('/product', [KlinikController::class, 'getProducts']);
-Route::post('/submit-scan', [KlinikController::class, 'submitScan']);
-
-Route::post('/checkout', [CheckoutController::class, 'processCheckout']);
-Route::get('/orders/{userId}', [CheckoutController::class, 'getOrderHistory']);
+// Scan & Reservation Routes
+Route::post('submit-scan', [KlinikController::class, 'submitScan']);
+Route::get('scan/{user_id}', [KlinikController::class, 'historyScan']);
 
 Route::post('reservations/create', [KlinikController::class, 'createReservation']);
 Route::get('reservations/{user_id}', [KlinikController::class, 'historyReservation']);
 
-Route::get('scan/{user_id}', [KlinikController::class, 'historyScan']);
+// E-commerce Routes
+Route::post('checkout', [CheckoutController::class, 'processCheckout']);
+Route::get('orders/{user_id}', [CheckoutController::class, 'getOrderHistory']);
 
-
-Route::get('/riwayat-pemeriksaan', [KlinikController::class, 'getRiwayatPemeriksaan']);
-
-Route::get('/riwayat-konsultasi', [KlinikController::class, 'getRiwayatKonsultasi']);
-
-Route::get('/riwayat-pembelian', [KlinikController::class, 'getRiwayatPembelian']);
+// Fallback route untuk user authentication check
+Route::middleware('auth:api')->get('/user', function (Request $request) {
+    $user = $request->user();
+    $profile = $user->profile;
+    
+    return response()->json([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'phone' => $profile->phone ?? null, // PASTIKAN PHONE MUNCUL DI SINI JUGA
+        'role_id' => $user->role_id,
+        'image_url' => $profile->image ? asset('storage/' . $profile->image) : null,
+        'token_api' => $user->token_api,
+        'is_scan' => $profile->is_scan ?? 0
+    ]);
+});

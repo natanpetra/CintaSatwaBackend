@@ -1,5 +1,8 @@
 <?php
 
+// 1. UPDATE EmployeeController.php - Tambah phone field
+// File: app/Http/Controllers/Master/Employee/EmployeeController.php
+
 namespace App\Http\Controllers\Master\Employee;
 
 use App\Http\Controllers\Controller;
@@ -22,53 +25,14 @@ class EmployeeController extends Controller
 
     public function __construct ()
     {
-      $this->model = new Profile();
-      $this->roleNotDisplay = Role::whereIn('name', ['customer', 'employee'])->get();
-      $this->params['route'] = $this->route;
-      $this->params['routeView'] = $this->routeView;
-    }
-
-    /**
-     * dipakai di menu purchase request
-     */
-    public function search(Request $request)
-    {
-      $where = "1=1";
-      $response = [];
-
-      if ($request->searchKey) {
-        $where .= " and name like '%{$request->searchKey}%'";
-      }
-
-      try {
-        // $results = $this->model->whereHas('user', function ($query) {
-        //                     $query->whereNotIn('role_id', $this->roleNotDisplay->pluck('id'));
-        //                 }
-        // )->whereRaw($where)
-        $results = User::whereRaw($where)
-                   ->whereNotIn('role_id', $this->roleNotDisplay->pluck('id'))
-                   ->get()
-                   ->makeHidden(['created_at', 'updated_at']);
-
-        $response['results'] = $results;
-      } catch (\Exception $e) {
-          report($e);
-        return response(['message' => $e->print()], 500);
-      }
-
-      return response()->json($response, 200);
-    }
-
-    public function searchById($id)
-    {
-    //   return response()->json($this->model->find($id), 200);
-      return response()->json(User::find($id), 200);
+        $this->model = new Profile();
+        $this->roleNotDisplay = Role::whereIn('name', ['customer', 'employee'])->get();
+        $this->params['route'] = $this->route;
+        $this->params['routeView'] = $this->routeView;
     }
 
     /**
      * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function index()
     {
@@ -82,14 +46,10 @@ class EmployeeController extends Controller
 
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function create()
     {
-        $roleNotDisplay = ['customer', 'employee'];
-
-        $this->params['roles'] = Role::whereNotIn('id', $this->roleNotDisplay->pluck('id'))->active()->get();
+        $this->params['roles'] = Role::whereNotIn('id', $this->roleNotDisplay->pluck('id'))->where('is_active', 1)->get();
         $this->params['model'] = $this->model;
 
         return view($this->routeView . '.create', $this->params);
@@ -103,10 +63,13 @@ class EmployeeController extends Controller
         $model = array_merge(
             $user->toArray(),
             $profile->toArray(),
-            ['id' => $profile->id ] //initialisasi ulang, karena kereplace id trasaction_setting
+            [
+                'id' => $profile->id,
+                'phone' => $profile->phone // PASTIKAN PHONE DIMUAT
+            ]
         );
 
-        $this->params['roles'] = Role::whereNotIn('id', $this->roleNotDisplay->pluck('id'))->active()->get();
+        $this->params['roles'] = Role::whereNotIn('id', $this->roleNotDisplay->pluck('id'))->where('is_active', 1)->get();
         $this->params['model'] = (object) $model;
 
         return view($this->routeView . '.edit', $this->params);
@@ -114,21 +77,18 @@ class EmployeeController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
     {
-        // $validator = $this->_validate($request->all());
-        //
-        // if($validator->fails())
-        // {
-        //     return redirect()
-        //         ->back()
-        //         ->withErrors($validator)
-        //         ->withInput();
-        // }
+        $validator = $this->_validate($request->all());
+
+        if($validator->fails())
+        {
+            return redirect()
+                ->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
 
         try {
             DB::beginTransaction();
@@ -147,15 +107,17 @@ class EmployeeController extends Controller
 
             $profile = $user->profile()->create([
                 'name' => $request->name,
+                'phone' => $request->phone, // TAMBAH PHONE
                 'image' => $image,
-                'is_active' => $request->is_active
+                'is_active' => $request->is_active ?? 1,
+                'is_scan' => $request->is_scan ?? 0
             ]);
 
             DB::commit();
 
             $request->session()->flash('notif', [
                 'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
+                'message' => str_replace(".", " ", $this->routeView) . ' success created',
             ]);
 
             return redirect($this->route);
@@ -168,7 +130,7 @@ class EmployeeController extends Controller
             }
 
             $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
+                'code' => 'failed',
                 'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
             ]);
 
@@ -179,34 +141,19 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
      * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
-        // $validator = $this->_validate($request->all());
-        //
-        // if($validator->fails())
-        // {
-        //     return redirect()
-        //         ->back()
-        //         ->withErrors($validator)
-        //         ->withInput();
-        // }
+        $validator = $this->_validate($request->all(), $id);
+
+        if($validator->fails())
+        {
+            return redirect()
+                ->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
 
         try {
             DB::beginTransaction();
@@ -230,16 +177,17 @@ class EmployeeController extends Controller
 
             $profile->update([
                 'name' => $request->name,
+                'phone' => $request->phone, // UPDATE PHONE
                 'image' => $image,
-                'is_active' => $request->is_active,
-                'is_scan'=> $request->is_scan
+                'is_active' => $request->is_active ?? 1,
+                'is_scan' => $request->is_scan ?? 0
             ]);
 
             DB::commit();
 
             $request->session()->flash('notif', [
                 'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
+                'message' => str_replace(".", " ", $this->routeView) . ' success updated',
             ]);
 
             return redirect($this->route);
@@ -248,7 +196,7 @@ class EmployeeController extends Controller
             DB::rollback();
 
             $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
+                'code' => 'failed',
                 'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
             ]);
 
@@ -260,9 +208,6 @@ class EmployeeController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
@@ -286,15 +231,49 @@ class EmployeeController extends Controller
         }
     }
 
-    private function _validate ($request)
+    private function _validate ($request, $id = null)
     {
-        $ignoredProfileId = !empty($request['id']) ? ','.$request['id'] : '';
-        $ignoredUserId = !empty($request['id']) ? ','.$this->model->find($request['id'])->user_id : '';
+        $ignoredProfileId = $id ? ','.$id : '';
+        $ignoredUserId = '';
+        
+        if ($id) {
+            $profile = $this->model->find($id);
+            $ignoredUserId = ','.$profile->user_id;
+        }
 
         return Validator::make($request, [
             'name' => ['required'],
             'role_id' => ['required'],
             'email' => ['required', 'unique:users,email' . $ignoredUserId, 'email'],
+            'phone' => ['required', 'unique:profiles,phone' . $ignoredProfileId, 'numeric', 'digits_between:7,12'], // TAMBAH VALIDASI PHONE
         ]);
+    }
+
+    public function search(Request $request)
+    {
+        $where = "1=1";
+        $response = [];
+
+        if ($request->searchKey) {
+            $where .= " and name like '%{$request->searchKey}%'";
+        }
+
+        try {
+            $results = User::whereRaw($where)
+                       ->whereNotIn('role_id', $this->roleNotDisplay->pluck('id'))
+                       ->get()
+                       ->makeHidden(['created_at', 'updated_at']);
+
+            $response['results'] = $results;
+        } catch (\Exception $e) {
+            return response(['message' => $e->getMessage()], 500);
+        }
+
+        return response()->json($response, 200);
+    }
+
+    public function searchById($id)
+    {
+        return response()->json(User::find($id), 200);
     }
 }
