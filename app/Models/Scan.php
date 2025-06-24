@@ -3,26 +3,31 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Scan extends Model
 {
-    // Jika nama tabel bukan plural dari model, bisa tentukan:
     protected $table = 'scan_result';
-
-    // Kolom yang boleh diisi mass assignment
+    
     protected $fillable = [
         'user_id',
         'photo',
+        'reservation_date',
+        'reservation_time'
     ];
 
-    // Jika ingin otomatis cast created_at/updated_at ke Carbon instances
-    public $timestamps = true;
+    // Accessor untuk format tanggal yang lebih sederhana
+    public function getFormattedDateAttribute()
+    {
+        return $this->reservation_date ? 
+            Carbon::parse($this->reservation_date)->format('d/m/Y') : '-';
+    }
 
-    // (Opsional) Jika ingin mereturn URL lengkap:
-    // public function getPhotoAttribute($value)
-    // {
-    //     return \Storage::url($value);
-    // }
+    public function getFormattedTimeAttribute()
+    {
+        return $this->reservation_time ? 
+            Carbon::parse($this->reservation_time)->format('H:i') : '-';
+    }
     
     public function user()
     {

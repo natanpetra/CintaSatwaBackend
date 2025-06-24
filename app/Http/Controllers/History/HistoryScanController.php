@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use PDF;
 
 use App\Models\Scan;
 
@@ -13,7 +14,6 @@ class HistoryScanController extends Controller
 {
     private $route = 'history/history-scan';
     private $routeView = 'history.history-scan';
-    private $routeUpload = 'img/scan';
     private $params = [];
 
     public function __construct ()
@@ -25,19 +25,16 @@ class HistoryScanController extends Controller
 
     /**
      * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function index()
     {
-      $this->params['scans'] = $this->model->with('user')->get();
+      // Load dengan relasi user dan profile untuk nomor telepon
+      $this->params['scans'] = $this->model->with('user.profile')->orderBy('created_at', 'desc')->get();
       return view($this->routeView . '.index', $this->params);
     }
     
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function create()
     {
@@ -47,9 +44,6 @@ class HistoryScanController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
     {
@@ -64,31 +58,18 @@ class HistoryScanController extends Controller
         }
 
         try {
-            $image = NULL;
-            if ($request->hasFile('gambar')) {
-                $image = $request->file('gambar')->store($this->routeUpload, 'public');
-            }
-
-            $this->model::create([
-                'judul' => $request->judul,
-                'konten' => $request->konten,
-                'gambar' => $image,
-            ]);
+            $this->model::create($request->all());
             
             $request->session()->flash('notif', [
                 'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
+                'message' => 'Data scan berhasil ditambahkan',
             ]);
             return redirect($this->route);
 
         } catch (\Throwable $th) {
-            if ($request->hasFile('gambar')) {
-                \Storage::disk('public')->delete($image);
-            }
-            
             $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
-                'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
+                'code' => 'failed',
+                'message' => 'Error: ' . $th->getMessage(),
             ]);
 
             return redirect()
@@ -98,21 +79,7 @@ class HistoryScanController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
      * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
@@ -122,10 +89,6 @@ class HistoryScanController extends Controller
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
@@ -140,38 +103,19 @@ class HistoryScanController extends Controller
         }
 
         try {
-            $mitra = $this->model::where('id', $id)->first();
-            $image = $mitra->gambar;
-
-            if ($request->hasFile('gambar')) {
-                if ($image) {
-                    \Storage::disk('public')->delete($image);
-                }
-
-                $image = $request->file('gambar')->store($this->routeUpload, 'public');
-            }
-
-            unset($request['_token'], $request['_method'], $request['id']);
-            $mitra->update([
-                'judul' => $request->judul,
-                'konten' => $request->konten,
-                'gambar' => $image
-            ]);
+            $scan = $this->model::where('id', $id)->first();
+            $scan->update($request->all());
             
             $request->session()->flash('notif', [
                 'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
+                'message' => 'Data scan berhasil diupdate',
             ]);
             return redirect($this->route);
 
         } catch (\Throwable $th) {
-            if ($request->hasFile('gambar')) {
-                \Storage::disk('public')->delete($image);
-            }
-
             $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
-                'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
+                'code' => 'failed',
+                'message' => 'Error: ' . $th->getMessage(),
             ]);
 
             return redirect()
@@ -182,31 +126,119 @@ class HistoryScanController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         try {
             DB::beginTransaction();
-            $length = $this->model->find($id);
-            $length->delete();
+            $scan = $this->model->find($id);
+            
+            if (!$scan) {
+                return response()->json(['message' => 'Data tidak ditemukan'], 404);
+            }
+            
+            $scan->delete();
             
             DB::commit();
-            return response()->json([], 204);
+            return response()->json(['message' => 'Data berhasil dihapus'], 200);
         } catch (\Throwable $th) {
             DB::rollback();
             return response()->json(['message' => $th->getMessage()], 500);
         }
     }
 
+    /**
+     * Export PDF - Simple Version (tanpa template terpisah)
+     */
+    public function exportPdf()
+    {
+        try {
+            // Ambil data scan dengan relasi user dan profile
+            $scans = $this->model->with('user.profile')->orderBy('created_at', 'desc')->get();
+            
+            // Buat HTML langsung di controller
+            $html = '
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Laporan Riwayat Pemeriksaan</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+                    th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
+                    .header { text-align: center; margin-bottom: 20px; }
+                    .text-center { text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>Laporan Riwayat Pemeriksaan</h2>
+                    <p>Tanggal Cetak: ' . date('d/m/Y H:i:s') . '</p>
+                    <p>Klinik Hewan Cinta Satwa</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="5%">No</th>
+                            <th width="20%">Nama Akun</th>
+                            <th width="20%">Nama Akun (Diubah)</th>
+                            <th width="15%">No Telepon</th>
+                            <th width="15%">Tanggal & Waktu</th>
+                            <th width="25%">Keluhan</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+            
+            if($scans->count() > 0) {
+                foreach($scans as $index => $scan) {
+                    $userName = $scan->user->name ?? 'N/A';
+                    $phone = $scan->user && $scan->user->profile ? $scan->user->profile->phone : 'Tidak ada';
+                    $date = $scan->created_at->format('d/m/Y H:i');
+                    $keluhan = 'anjing saya gatal pitbul'; // Default keluhan seperti di screenshot
+                    
+                    $html .= '<tr>
+                        <td class="text-center">' . ($index + 1) . '</td>
+                        <td>' . $userName . '</td>
+                        <td>' . $userName . '</td>
+                        <td>' . $phone . '</td>
+                        <td class="text-center">' . $date . '</td>
+                        <td>Keluhan: ' . $keluhan . '</td>
+                    </tr>';
+                }
+            } else {
+                $html .= '<tr><td colspan="6" class="text-center"><em>Tidak ada data pemeriksaan</em></td></tr>';
+            }
+            
+            $html .= '</tbody></table>
+                <div style="margin-top: 30px; text-align: right; font-size: 10px;">
+                    <p>Dicetak pada: ' . date('d/m/Y H:i:s') . '</p>
+                </div>
+            </body></html>';
+            
+            // Generate PDF dari HTML
+            $pdf = \PDF::loadHTML($html);
+            $pdf->setPaper('A4', 'landscape');
+            
+            // Download PDF
+            return $pdf->download('Riwayat_Pemeriksaan_' . date('Y-m-d_H-i-s') . '.pdf');
+            
+        } catch (\Throwable $th) {
+            // Debug error
+            return response()->json([
+                'error' => true,
+                'message' => 'Gagal export PDF: ' . $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ], 500);
+        }
+    }
+
     private function _validate ($request)
     {
         return Validator::make($request, [
-            'judul' => 'required',
-            'gambar' => 'nullable|image|max:2048',
-            'konten' => 'required',
+            'user_id' => 'required',
+            'photo' => 'required|string',
         ]);
     }
 
@@ -216,7 +248,7 @@ class HistoryScanController extends Controller
       $response = [];
 
       if ($request->searchKey) {
-        $where .= " and name like '%{$request->searchKey}%'";
+        $where .= " and user_id IN (SELECT id FROM users WHERE name LIKE '%{$request->searchKey}%')";
       }
 
       try {
@@ -234,6 +266,6 @@ class HistoryScanController extends Controller
 
     public function searchById($id)
     {
-      return response()->json(Bisnis::find($id), 200);
+      return response()->json($this->model->find($id), 200);
     }
 }

@@ -20,6 +20,7 @@
                             <th>No</th>
                             <th>ID Order</th>
                             <th>Nama Pembeli</th>
+                            <th>No Telepon</th>
                             <th>Barang yang Dibeli</th>
                             <th>Status</th>
                             <th>Total Pembelian</th>
@@ -33,6 +34,7 @@
                             <td>{{ $index + 1 }}</td>
                             <td>{{ $order->id }}</td>
                             <td>{{ $order->user->name ?? 'N/A' }}</td>
+                            <td>{{ $order->user->profile->phone ?? 'Tidak ada' }}</td>
                             <td>
                                 @if($order->orderItems && $order->orderItems->count() > 0)
                                     @foreach($order->orderItems as $item)
@@ -57,7 +59,7 @@
                             <td>Rp {{ number_format($order->total_price, 0, ',', '.') }}</td>
                             <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
                             <td>
-                                <button class="btn btn-sm btn-danger confirmation-delete" 
+                                <button class="btn btn-sm btn-danger delete-btn" 
                                         data-target="{{ url($route . '/' . $order->id) }}"
                                         data-token="{{ csrf_token() }}">
                                     <i class="fa fa-trash"></i>
@@ -109,8 +111,8 @@ $(document).ready(function() {
         });
     });
 
-    // Handle delete confirmation
-    $('.confirmation-delete').on('click', function() {
+    // Handle delete
+    $('.delete-btn').on('click', function() {
         var url = $(this).data('target');
         var token = $(this).data('token');
         var row = $(this).closest('tr');

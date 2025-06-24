@@ -13,7 +13,6 @@ class HistoryPurchaseController extends Controller
 {
     private $route = 'history/history-purchase';
     private $routeView = 'history.history-purchase';
-    private $routeUpload = 'img/bisnis';
     private $params = [];
 
     public function __construct ()
@@ -30,7 +29,8 @@ class HistoryPurchaseController extends Controller
      */
     public function index()
     {
-      $this->params['history'] = $this->model->with('user')->get();
+      // Load user dengan profile (untuk nomor telepon) dan orderItems dengan product
+      $this->params['history'] = $this->model->with(['user.profile', 'orderItems.product'])->orderBy('created_at', 'desc')->get();
       return view($this->routeView . '.index', $this->params);
     }
     
@@ -53,48 +53,9 @@ class HistoryPurchaseController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = $this->_validate($request->all());
-
-        if($validator->fails())
-        {
-            return redirect()
-                ->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        try {
-            $image = NULL;
-            if ($request->hasFile('gambar')) {
-                $image = $request->file('gambar')->store($this->routeUpload, 'public');
-            }
-
-            $this->model::create([
-                'judul' => $request->judul,
-                'konten' => $request->konten,
-                'gambar' => $image,
-            ]);
-            
-            $request->session()->flash('notif', [
-                'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
-            ]);
-            return redirect($this->route);
-
-        } catch (\Throwable $th) {
-            if ($request->hasFile('gambar')) {
-                \Storage::disk('public')->delete($image);
-            }
-            
-            $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
-                'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
-            ]);
-
-            return redirect()
-                ->back()
-                ->withInput();
-        }
+        // Method ini tidak digunakan untuk pembelian
+        // Pembelian dilakukan melalui API checkout
+        return redirect($this->route);
     }
 
     /**
@@ -105,7 +66,8 @@ class HistoryPurchaseController extends Controller
      */
     public function show($id)
     {
-        //
+        $this->params['order'] = $this->model->with(['user.profile', 'orderItems.product'])->find($id);
+        return view($this->routeView . '.show', $this->params);
     }
 
     /**
@@ -129,55 +91,8 @@ class HistoryPurchaseController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validator = $this->_validate($request->all());
-
-        if($validator->fails())
-        {
-            return redirect()
-                ->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        try {
-            $mitra = $this->model::where('id', $id)->first();
-            $image = $mitra->gambar;
-
-            if ($request->hasFile('gambar')) {
-                if ($image) {
-                    \Storage::disk('public')->delete($image);
-                }
-
-                $image = $request->file('gambar')->store($this->routeUpload, 'public');
-            }
-
-            unset($request['_token'], $request['_method'], $request['id']);
-            $mitra->update([
-                'judul' => $request->judul,
-                'konten' => $request->konten,
-                'gambar' => $image
-            ]);
-            
-            $request->session()->flash('notif', [
-                'code' => 'success',
-                'message' => str_replace(".", " ", $this->routeView) . ' success ' . __FUNCTION__ . 'd',
-            ]);
-            return redirect($this->route);
-
-        } catch (\Throwable $th) {
-            if ($request->hasFile('gambar')) {
-                \Storage::disk('public')->delete($image);
-            }
-
-            $request->session()->flash('notif', [
-                'code' => 'failed ' . __FUNCTION__ . 'd',
-                'message' => str_replace(".", " ", $this->routeView) . ' : ' . $th->getMessage(),
-            ]);
-
-            return redirect()
-                ->back()
-                ->withInput();
-        }
+        // Method ini hanya untuk update status
+        return $this->updateStatus($request, $id);
     }
 
     /**
@@ -190,37 +105,79 @@ class HistoryPurchaseController extends Controller
     {
         try {
             DB::beginTransaction();
-            $length = $this->model->find($id);
-            $length->delete();
+            
+            $order = $this->model->find($id);
+            
+            if (!$order) {
+                return response()->json(['message' => 'Order tidak ditemukan'], 404);
+            }
+            
+            // Hapus order items terlebih dahulu
+            $order->orderItems()->delete();
+            
+            // Hapus order
+            $order->delete();
             
             DB::commit();
-            return response()->json([], 204);
+            return response()->json(['message' => 'Order berhasil dihapus'], 200);
+            
         } catch (\Throwable $th) {
             DB::rollback();
-            return response()->json(['message' => $th->getMessage()], 500);
+            return response()->json(['message' => 'Error: ' . $th->getMessage()], 500);
         }
     }
 
-    private function _validate ($request)
+    /**
+     * Update status order
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function updateStatus(Request $request, $id)
     {
-        return Validator::make($request, [
-            'judul' => 'required',
-            'gambar' => 'nullable|image|max:2048',
-            'konten' => 'required',
+        $request->validate([
+            'status' => 'required|in:pending,paid,completed,canceled',
         ]);
+
+        try {
+            $order = Order::findOrFail($id);
+            $order->status = $request->status;
+            $order->save();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Status berhasil diperbarui'], 200);
+            }
+
+            return back()->with('success', 'Status berhasil diperbarui.');
+            
+        } catch (\Throwable $th) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Error: ' . $th->getMessage()], 500);
+            }
+            
+            return back()->with('error', 'Gagal memperbarui status: ' . $th->getMessage());
+        }
     }
 
+    /**
+     * Search orders
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
     public function search(Request $request)
     {
       $where = "1=1";
       $response = [];
 
       if ($request->searchKey) {
-        $where .= " and name like '%{$request->searchKey}%'";
+        $where .= " and user_id IN (SELECT id FROM users WHERE name LIKE '%{$request->searchKey}%')";
       }
 
       try {
-        $results = $this->model->whereRaw($where)
+        $results = $this->model->with(['user.profile', 'orderItems.product'])
+                   ->whereRaw($where)
                    ->get()
                    ->makeHidden(['created_at', 'updated_at']);
 
@@ -232,22 +189,30 @@ class HistoryPurchaseController extends Controller
       return response()->json($response, 200);
     }
 
+    /**
+     * Search order by ID
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
     public function searchById($id)
     {
-      return response()->json(Bisnis::find($id), 200);
-    }
-    
-    public function updateStatus(Request $request, $id)
-    {
-        $request->validate([
-            'status' => 'required|in:pending,paid,completed,canceled',
-        ]);
-    
-        $purchase = Order::findOrFail($id); // atau modelmu
-        $purchase->status = $request->status;
-        $purchase->save();
-    
-        return back()->with('success', 'Status berhasil diperbarui.');
+      $order = $this->model->with(['user.profile', 'orderItems.product'])->find($id);
+      return response()->json($order, 200);
     }
 
+    /**
+     * Export orders to PDF
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function exportPdf()
+    {
+        $orders = $this->model->with(['user.profile', 'orderItems.product'])->get();
+        
+        // Implementasi export PDF bisa ditambahkan di sini
+        // Menggunakan library seperti DomPDF atau TCPDF
+        
+        return response()->json(['message' => 'Export PDF feature coming soon'], 200);
+    }
 }
