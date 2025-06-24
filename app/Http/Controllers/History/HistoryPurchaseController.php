@@ -30,10 +30,7 @@ class HistoryPurchaseController extends Controller
      */
     public function index()
     {
-      $this->params['history'] = $this->model->with([
-    'user', 
-    'orderItems.product'
-])->get();
+      $this->params['history'] = $this->model->with('user')->get();
       return view($this->routeView . '.index', $this->params);
     }
     

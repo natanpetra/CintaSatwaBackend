@@ -146,6 +146,20 @@ return [
       'can' => 'access-menu',
       'icon' => 'phone',
     ],
+    // [
+    //   'text' => 'Ras',
+    //   'url'  => 'master/ras',
+    //   'model'  => 'master/ras',
+    //   'can' => 'access-menu',
+    //   'icon' => 'dog',
+    // ],
+    [
+      'text' => 'Ras Image',
+      'url'  => 'master/ras-image',
+      'model'  => 'master/ras-image',
+      'can' => 'access-menu',
+      'icon' => 'dog',
+    ],
     'RIWAYAT',
     [
       'text' => 'Riwayat Reservasi',
